@@ -6,10 +6,11 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Header.h"
 #include <direct.h>
+#include "stb_image.h"
 
 // window
-const unsigned int WIDTH = 1280;
-const unsigned int HEIGHT = 720;
+const unsigned int WIDTH = 1920;
+const unsigned int HEIGHT = 1080;
 
 // camera
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -68,21 +69,26 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    const float cameraSpeed = 2.0f * deltaTime;
+    const float cameraSpeed = 5.0f * deltaTime;
+    const float cameraSpeedS = 2.5f * deltaTime;
+
+    glm::vec3 front = cameraFront;
+    front.y = 0.0f;
+    front = glm::normalize(front);
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
+        cameraPos += cameraSpeed * front;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
+        cameraPos -= cameraSpeedS * front;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        cameraPos -= glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        cameraPos += glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
 
     cameraPos.y = 1.3f;
     float margin = 0.3f; // how close u can get to a wall
-    cameraPos.x = glm::clamp(cameraPos.x, -5.0f + margin, 5.0f - margin);
-    cameraPos.z = glm::clamp(cameraPos.z, -5.0f + margin, 5.0f - margin);
+    cameraPos.x = glm::clamp(cameraPos.x, -7.7f + margin, 7.7f - margin);
+    cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
 }
 
 
@@ -114,92 +120,124 @@ int main()
         return -1;
     }
 
-   
+
 
     glEnable(GL_DEPTH_TEST);
 
 
     float vertices[] = {
         // FLOOR (normal pointing up)
-        -5.0f, 0.0f, -5.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
-         5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
-         5.0f, 0.0f,  5.0f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,
-        -5.0f, 0.0f,  5.0f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
+        -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+         8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+         8.0f, 0.0f,  8.0f,  2.0f, 2.0f,  0.0f, 1.0f, 0.0f,
+        -8.0f, 0.0f,  8.0f,  0.0f, 2.0f,  0.0f, 1.0f, 0.0f,
 
-        // BACK WALL (normal pointing towards you)
-        -5.0f, 0.0f, -5.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-         5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-         5.0f, 3.0f, -5.0f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
-        -5.0f, 3.0f, -5.0f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+        // BACK WALL
+        -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+         8.0f, 0.0f, -8.0f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+         8.0f, 4.5f, -8.0f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+        -8.0f, 4.5f, -8.0f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
 
-        // FRONT WALL (normal pointing away from you)
-        -5.0f, 0.0f,  5.0f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-         5.0f, 0.0f,  5.0f,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-         5.0f, 3.0f,  5.0f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
-        -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+        // FRONT WALL
+        -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+         8.0f, 0.0f,  8.0f,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+         8.0f, 4.5f,  8.0f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+        -8.0f, 4.5f,  8.0f,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,
 
-        // LEFT WALL (normal pointing right)
-        -5.0f, 0.0f,  5.0f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-        -5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-        -5.0f, 3.0f, -5.0f,  1.0f, 1.0f,  1.0f, 0.0f, 0.0f,
-        -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+        // LEFT WALL
+        -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+        -8.0f, 0.0f, -8.0f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+        -8.0f, 4.5f, -8.0f,  1.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+        -8.0f, 4.5f,  8.0f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
 
-        // RIGHT WALL (normal pointing left)
-         5.0f, 0.0f, -5.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-         5.0f, 0.0f,  5.0f,  1.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-         5.0f, 3.0f,  5.0f,  1.0f, 1.0f, -1.0f, 0.0f, 0.0f,
-         5.0f, 3.0f, -5.0f,  0.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+        // RIGHT WALL
+         8.0f, 0.0f, -8.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+         8.0f, 0.0f,  8.0f,  1.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+         8.0f, 4.5f,  8.0f,  1.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+         8.0f, 4.5f, -8.0f,  0.0f, 1.0f, -1.0f, 0.0f, 0.0f,
 
-         // CEILING (normal pointing down)
-         -5.0f, 3.0f, -5.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-          5.0f, 3.0f, -5.0f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-          5.0f, 3.0f,  5.0f,  1.0f, 1.0f,  0.0f, -1.0f, 0.0f,
-         -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
+         // CEILING
+         -8.0f, 4.5f, -8.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+          8.0f, 4.5f, -8.0f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+          8.0f, 4.5f,  8.0f,  1.0f, 1.0f,  0.0f, -1.0f, 0.0f,
+         -8.0f, 4.5f,  8.0f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
     };
 
-    unsigned int indices[] = {
-        // floor
-        0, 1, 2,  0, 2, 3,
-        // back wall
-        4, 5, 6,  4, 6, 7,
-        // front wall
-        8, 9, 10,  8, 10, 11,
-        // left wall
-        12, 13, 14,  12, 14, 15,
-        // right wall
-        16, 17, 18,  16, 18, 19,
-        // ceiling
-        20, 21, 22,  20, 22, 23
+    unsigned int floorIndices[] = {
+        0, 1, 2,     0, 2, 3 // floor
+    };
+
+    unsigned int wallIndices[] = {
+        4,  5,  6,   4,  6,  7,   // back wall
+        8,  9,  10,  8,  10, 11,  // front wall
+        12, 13, 14,  12, 14, 15,  // left wall
+        16, 17, 18,  16, 18, 19,  // right wall
+        20, 21, 22,  20, 22, 23   // ceiling
     };
 
     Shader roomShader("shader.vs", "shader.fs");
 
 
-    unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
+    unsigned int VBO;
+    unsigned int floorVAO, floorEBO;
+    unsigned int wallsVAO, wallsEBO;
+
+    // create VBO once - shared between both VAOs
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO); // bind VAO first
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO); // EBO inside VAO
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // position
+    // floor VAO
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorEBO);
+    glBindVertexArray(floorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO); // rebind shared VBO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floorEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(floorIndices), floorIndices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // texcoord
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    // normal
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
     glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
 
-    glBindVertexArray(0); // unbind
+    // walls VAO
+    glGenVertexArrays(1, &wallsVAO);
+    glGenBuffers(1, &wallsEBO);
+    glBindVertexArray(wallsVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO); // rebind shared VBO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, wallsEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(wallIndices), wallIndices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
     
+
+    //texture
+    unsigned int floorTexture;
+    glGenTextures(1, &floorTexture);
+    glBindTexture(GL_TEXTURE_2D, floorTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_set_flip_vertically_on_load(true);
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("floor.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else {
+        std::cout << "failed to load floor tex" << std::endl;
+    }
+    stbi_image_free(data);
 
     //render loop
     while (!glfwWindowShouldClose(window))
@@ -217,12 +255,20 @@ int main()
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
         roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
         roomShader.setMat4("model", glm::mat4(1.0f));
-        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.0f, 0.0f));
+        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
         roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
         roomShader.setVec3("viewPos", cameraPos);
+      
 
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        roomShader.setInt("useTexture", 1);
+        glBindVertexArray(floorVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        roomShader.setInt("useTexture", 0);
+        glBindVertexArray(wallsVAO);
+        glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
