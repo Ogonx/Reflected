@@ -68,7 +68,7 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    const float cameraSpeed = 5.0f * deltaTime;
+    const float cameraSpeed = 2.0f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
@@ -78,6 +78,11 @@ void processInput(GLFWwindow* window)
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+
+    cameraPos.y = 1.3f;
+    float margin = 0.3f; // how close u can get to a wall
+    cameraPos.x = glm::clamp(cameraPos.x, -5.0f + margin, 5.0f - margin);
+    cameraPos.z = glm::clamp(cameraPos.z, -5.0f + margin, 5.0f - margin);
 }
 
 
@@ -115,16 +120,56 @@ int main()
 
 
     float vertices[] = {
-        // position          // texcoord  // normal
-        -5.0f, 0.0f, -5.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // back left
-         5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,  // back right
-         5.0f, 0.0f,  5.0f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  // front right
-        -5.0f, 0.0f,  5.0f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f   // front left
+        // FLOOR (normal pointing up)
+        -5.0f, 0.0f, -5.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+         5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  0.0f, 1.0f, 0.0f,
+         5.0f, 0.0f,  5.0f,  1.0f, 1.0f,  0.0f, 1.0f, 0.0f,
+        -5.0f, 0.0f,  5.0f,  0.0f, 1.0f,  0.0f, 1.0f, 0.0f,
+
+        // BACK WALL (normal pointing towards you)
+        -5.0f, 0.0f, -5.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+         5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  0.0f, 0.0f, 1.0f,
+         5.0f, 3.0f, -5.0f,  1.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+        -5.0f, 3.0f, -5.0f,  0.0f, 1.0f,  0.0f, 0.0f, 1.0f,
+
+        // FRONT WALL (normal pointing away from you)
+        -5.0f, 0.0f,  5.0f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+         5.0f, 0.0f,  5.0f,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,
+         5.0f, 3.0f,  5.0f,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+        -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,
+
+        // LEFT WALL (normal pointing right)
+        -5.0f, 0.0f,  5.0f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+        -5.0f, 0.0f, -5.0f,  1.0f, 0.0f,  1.0f, 0.0f, 0.0f,
+        -5.0f, 3.0f, -5.0f,  1.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+        -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  1.0f, 0.0f, 0.0f,
+
+        // RIGHT WALL (normal pointing left)
+         5.0f, 0.0f, -5.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+         5.0f, 0.0f,  5.0f,  1.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+         5.0f, 3.0f,  5.0f,  1.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+         5.0f, 3.0f, -5.0f,  0.0f, 1.0f, -1.0f, 0.0f, 0.0f,
+
+         // CEILING (normal pointing down)
+         -5.0f, 3.0f, -5.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+          5.0f, 3.0f, -5.0f,  1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+          5.0f, 3.0f,  5.0f,  1.0f, 1.0f,  0.0f, -1.0f, 0.0f,
+         -5.0f, 3.0f,  5.0f,  0.0f, 1.0f,  0.0f, -1.0f, 0.0f,
     };
 
     unsigned int indices[] = {
-        0, 1, 2,
-        2, 3, 0
+        // floor
+        0, 1, 2,  0, 2, 3,
+        // back wall
+        4, 5, 6,  4, 6, 7,
+        // front wall
+        8, 9, 10,  8, 10, 11,
+        // left wall
+        12, 13, 14,  12, 14, 15,
+        // right wall
+        16, 17, 18,  16, 18, 19,
+        // ceiling
+        20, 21, 22,  20, 22, 23
     };
 
     Shader roomShader("shader.vs", "shader.fs");
@@ -177,7 +222,7 @@ int main()
         roomShader.setVec3("viewPos", cameraPos);
 
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
