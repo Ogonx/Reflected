@@ -67,3 +67,11 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Visual Studio
+*.vsidx
+*.suo
+.vs/
+x64/
+*.user
+*.vcxproj.user
