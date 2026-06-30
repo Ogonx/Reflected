@@ -121,6 +121,7 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
 
     float vertices[] = {
         // FLOOR (normal pointing up)
@@ -160,6 +161,19 @@ int main()
          -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, -1.0f, 0.0f,
     };
 
+    float mirrorVertices[] = {
+        // position          // texcoord  // normal
+        8.0f, 1.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom left
+        8.0f, 1.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom right
+        8.0f, 3.5f,  1.0f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,  // top right
+        8.0f, 3.5f, -1.0f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f   // top left
+    };
+
+    unsigned int mirrorIndices[] = {
+        0, 1, 2,
+        0, 2, 3
+    };
+
     unsigned int floorIndices[] = {
         0, 1, 2,  0, 2, 3
     };
@@ -177,6 +191,7 @@ int main()
     unsigned int VBO;
     unsigned int floorVAO, floorEBO;
     unsigned int wallsVAO, wallsEBO;
+    unsigned int mirrorVAO, mirrorVBO, mirrorEBO;
 
     // shared VBO
     glGenBuffers(1, &VBO);
@@ -205,6 +220,23 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, wallsEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(wallIndices), wallIndices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
+
+    // mirror VAO
+    glGenVertexArrays(1, &mirrorVAO);
+    glGenBuffers(1, &mirrorVBO);
+    glGenBuffers(1, &mirrorEBO);
+    glBindVertexArray(mirrorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, mirrorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(mirrorVertices), mirrorVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mirrorEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(mirrorIndices), mirrorIndices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -261,7 +293,7 @@ int main()
         processInput(window);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         roomShader.use();
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
@@ -272,6 +304,39 @@ int main()
         roomShader.setVec3("viewPos", cameraPos);
         roomShader.setInt("texture1", 0);
 
+        // ---- PASS 1 - mark mirror shape in stencil buffer ----
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glBindVertexArray(mirrorVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthMask(GL_TRUE);
+
+        // pass 2 - draw mirror world
+        glStencilFunc(GL_EQUAL, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+        // reflect view around the mirror plane x=8
+      
+        glm::vec3 reflectedCameraPos;
+        reflectedCameraPos.x = -16.0f - cameraPos.x;
+        reflectedCameraPos.y = cameraPos.y;
+        reflectedCameraPos.z = cameraPos.z;
+
+        glm::vec3 reflectedFront = cameraFront;
+        reflectedFront.x = -reflectedFront.x;
+
+        glm::mat4 mirrorView = glm::lookAt(
+            reflectedCameraPos,
+            reflectedCameraPos + reflectedFront,
+            cameraUp
+        );
+
+        roomShader.setMat4("view", mirrorView);
+        roomShader.setMat4("model", glm::mat4(1.0f)); // normal model matrix
+
         // draw floor
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
@@ -279,7 +344,25 @@ int main()
         glBindVertexArray(floorVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        // draw walls and ceiling
+        // draw walls
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, wallTexture);
+        roomShader.setInt("useTexture", 1);
+        glBindVertexArray(wallsVAO);
+        glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+
+        // ---- PASS 3 - draw normal room ----
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+        roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        roomShader.setInt("useTexture", 1);
+        glBindVertexArray(floorVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, wallTexture);
         roomShader.setInt("useTexture", 1);
