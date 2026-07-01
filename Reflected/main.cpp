@@ -163,11 +163,12 @@ int main()
 
     float mirrorVertices[] = {
         // position          // texcoord  // normal
-        8.0f, 1.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom left
-        8.0f, 1.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom right
+        8.0f, 0.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom left
+        8.0f, 0.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom right
         8.0f, 3.5f,  1.0f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,  // top right
         8.0f, 3.5f, -1.0f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f   // top left
     };
+
 
     unsigned int mirrorIndices[] = {
         0, 1, 2,
@@ -283,7 +284,6 @@ int main()
     }
     stbi_image_free(data);
 
-    // render loop
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = (float)glfwGetTime();
@@ -304,7 +304,7 @@ int main()
         roomShader.setVec3("viewPos", cameraPos);
         roomShader.setInt("texture1", 0);
 
-        // ---- PASS 1 - mark mirror shape in stencil buffer ----
+        // PASS 1 - mark mirror shape in stencil buffer
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         glDepthMask(GL_FALSE);
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -314,48 +314,44 @@ int main()
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthMask(GL_TRUE);
 
-        // pass 2 - draw mirror world
+        // PASS 2 - draw mirror world (flip x axis, mirror on right wall x=8)
         glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        // reflect view around the mirror plane x=8
-      
-        glm::vec3 reflectedCameraPos;
-        reflectedCameraPos.x = -16.0f - cameraPos.x;
-        reflectedCameraPos.y = cameraPos.y;
-        reflectedCameraPos.z = cameraPos.z;
+        // same position, just flip x of look direction
+        glm::vec3 mirrorFront = cameraFront;
+        mirrorFront.x = -mirrorFront.x;
 
-        glm::vec3 reflectedFront = cameraFront;
-        reflectedFront.x = -reflectedFront.x;
+        // shift camera slightly towards mirror for parallax effect
+        glm::vec3 mirrorPos = cameraPos;
+        mirrorPos.x = 8.0f - (8.0f - cameraPos.x) * 0.5f;
 
-        glm::mat4 mirrorView = glm::lookAt(
-            reflectedCameraPos,
-            reflectedCameraPos + reflectedFront,
-            cameraUp
-        );
+        glm::mat4 mirrorView = glm::lookAt(mirrorPos, mirrorPos + mirrorFront, cameraUp);
 
         roomShader.setMat4("view", mirrorView);
-        roomShader.setMat4("model", glm::mat4(1.0f)); // normal model matrix
+        roomShader.setMat4("model", glm::mat4(1.0f));
+        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
 
-        // draw floor
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         roomShader.setInt("useTexture", 1);
         glBindVertexArray(floorVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        // draw walls
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, wallTexture);
         roomShader.setInt("useTexture", 1);
         glBindVertexArray(wallsVAO);
         glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
 
-        // ---- PASS 3 - draw normal room ----
+        // PASS 3 - draw normal room
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
         roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
+        roomShader.setMat4("model", glm::mat4(1.0f));
+        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+        roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
@@ -372,7 +368,6 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
     glfwTerminate();
     return 0;
 }
