@@ -29,6 +29,8 @@ float fov = 90.0f;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+bool inMirrorWorld = false;
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -86,9 +88,32 @@ void processInput(GLFWwindow* window)
         cameraPos += glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
 
     cameraPos.y = 1.3f;
-    float margin = 0.3f; // how close u can get to a wall
-    cameraPos.x = glm::clamp(cameraPos.x, -7.7f + margin, 7.7f - margin);
-    cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+    float margin = 0.3f;
+
+    // teleport check FIRST, using raw position
+    if (cameraPos.x > 7.0f && !inMirrorWorld)
+    {
+        inMirrorWorld = true;
+        cameraPos.x = 9.3f;
+    }
+    else if (cameraPos.x < 9.0f && inMirrorWorld)
+    {
+        inMirrorWorld = false;
+        cameraPos.x = 6.7f;
+    }
+
+    // clamp
+    if (inMirrorWorld)
+    {
+        cameraPos.x = glm::clamp(cameraPos.x, 8.6f, 23.4f);
+        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+    }
+    else
+    {
+        cameraPos.x = glm::clamp(cameraPos.x, -7.7f + margin, 7.7f - margin);
+        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+    }
+      
 }
 
 
