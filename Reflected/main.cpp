@@ -116,6 +116,26 @@ void processInput(GLFWwindow* window)
       
 }
 
+ glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane) {
+     
+     glm::vec4 q;
+     glm::vec4 c;
+
+     q.x = (glm::sign(clipPlane.x) + proj[2][0]) / proj[0][0];
+     q.y = (glm::sign(clipPlane.y) + proj[2][1]) / proj[1][1];
+     q.z = -1.0f;
+     q.w = (1.0f + proj[2][2]) / proj[3][2];
+
+     c = clipPlane * (2.0f / glm::dot(clipPlane, q));
+
+     proj[0][2] = c.x;
+     proj[1][2] = c.y;
+     proj[2][2] = c.z + 1.0f;
+     proj[3][2] = c.w;
+
+     return proj;
+}
+
 
 
 int main()
@@ -351,9 +371,20 @@ int main()
 
         // shift camera slightly towards mirror for parallax effect
         glm::vec3 mirrorPos = cameraPos;
-        mirrorPos.x = 16.0f - cameraPos.x;
+        //mirrorPos.x = 16.0f - cameraPos.x;
+        mirrorPos.x = cameraPos.x;
 
         glm::mat4 mirrorView = glm::lookAt(mirrorPos, mirrorPos + mirrorFront, cameraUp);
+        glm::vec4 worldPlane;
+        if (inMirrorWorld) {
+            worldPlane = glm::vec4(-1.0f, 0.0f, 0.0f, 7.99f);
+        }
+        else {
+            worldPlane = glm::vec4(1.0f, 0.0f, 0.0f, -8.01f);
+        }
+        glm::vec4 viewPlane = glm::transpose(glm::inverse(mirrorView)) * worldPlane;
+
+        roomShader.setMat4("projection", obliqueProjection(glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f), viewPlane));
 
         roomShader.setMat4("view", mirrorView);
         if (inMirrorWorld) {
