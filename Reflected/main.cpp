@@ -30,6 +30,8 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 bool inMirrorWorld = false;
+bool inDoorway = false;
+bool inPortalGap = false;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -87,23 +89,21 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
 
+    inDoorway = cameraPos.z > -1.0f && cameraPos.z < 1.0f;
+
+    inMirrorWorld = cameraPos.x > 8.0f;
+
+    inPortalGap = inDoorway && cameraPos.x > 7.4f && cameraPos.x < 8.6f;
+
     cameraPos.y = 1.3f;
     float margin = 0.3f;
 
-    // teleport check FIRST, using raw position
-    if (cameraPos.x > 7.0f && !inMirrorWorld)
-    {
-        inMirrorWorld = true;
-        cameraPos.x = 9.3f;
-    }
-    else if (cameraPos.x < 9.0f && inMirrorWorld)
-    {
-        inMirrorWorld = false;
-        cameraPos.x = 6.7f;
-    }
-
     // clamp
-    if (inMirrorWorld)
+    if (inDoorway) {
+        cameraPos.x = glm::clamp(cameraPos.x, -7.4f, 23.4f);
+        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+    }
+    else if (inMirrorWorld)
     {
         cameraPos.x = glm::clamp(cameraPos.x, 8.6f, 23.4f);
         cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
@@ -336,7 +336,6 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window);
-        std::cout << cameraFront.x << std::endl;
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -435,6 +434,26 @@ int main()
         roomShader.setInt("useTexture", 1);
         glBindVertexArray(wallsVAO);
         glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+
+        if (inPortalGap) {
+            if (inMirrorWorld) {
+                roomShader.setMat4("model", glm::mat4(1.0f));
+                roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+            }
+            else {
+                roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
+                roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, floorTexture);
+            glBindVertexArray(floorVAO);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+            glBindTexture(GL_TEXTURE_2D, wallTexture);
+            glBindVertexArray(wallsVAO);
+            glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
