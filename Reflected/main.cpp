@@ -316,6 +316,7 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window);
+        std::cout << cameraFront.x << std::endl;
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -343,20 +344,27 @@ int main()
         glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        // same position, just flip x of look direction
+        // same position, just flip x of look directionchrome://vivaldi-webui/startpage?section=Speed-dials&background-color=#363536
         glm::vec3 mirrorFront = cameraFront;
-        mirrorFront.x = -mirrorFront.x;
+        
+        
 
         // shift camera slightly towards mirror for parallax effect
         glm::vec3 mirrorPos = cameraPos;
-        mirrorPos.x = 8.0f - (8.0f - cameraPos.x) * 0.5f;
+        mirrorPos.x = 16.0f - cameraPos.x;
 
         glm::mat4 mirrorView = glm::lookAt(mirrorPos, mirrorPos + mirrorFront, cameraUp);
 
         roomShader.setMat4("view", mirrorView);
-        roomShader.setMat4("model", glm::mat4(1.0f));
-        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
-
+        if (inMirrorWorld) {
+            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,0.0f)));
+            roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+        }
+        else {
+            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
+            roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+        }
+       
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         roomShader.setInt("useTexture", 1);
@@ -374,8 +382,15 @@ int main()
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
         roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
-        roomShader.setMat4("model", glm::mat4(1.0f));
-        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+        if (inMirrorWorld) {
+            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
+            roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+        }
+        else {
+            roomShader.setMat4("model", glm::mat4(1.0f));
+            roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+        }
+
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
 
         glActiveTexture(GL_TEXTURE0);
