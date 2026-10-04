@@ -26,8 +26,21 @@ void main()
     vec3 diffuse = diff * lightColor;
 
     vec3 baseColor;
+
+    vec3 n = abs(normalize(Normal));
+    vec2 worldUV;
+
+    if(n.y > 0.5)
+       worldUV = FragPos.xz;
+    else if (n.x > 0.5)
+       worldUV = FragPos.zy;
+    else
+       worldUV = FragPos.xy;
+
+    worldUV /= 8.0;
+
     if (useTexture == 1)
-        baseColor = vec3(texture(texture1, TexCoord));
+        baseColor = vec3(texture(texture1,worldUV));
     else
         baseColor = vec3(0.8, 0.8, 0.8);
 
