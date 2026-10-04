@@ -35,6 +35,7 @@ bool inPortalGap = false;
 
 struct Room {
     glm::vec3 position;
+    glm::vec3 roomSize;
     glm::vec3 lightPos;
     glm::vec3 lightColor;
     float grainAmount;
@@ -147,7 +148,7 @@ void processInput(GLFWwindow* window)
 }
 
  void drawRoom(Shader& shader, const Room& room) {
-     shader.setMat4("model", glm::translate(glm::mat4(1.0f), room.position));
+     shader.setMat4("model", glm::scale(glm::translate(glm::mat4(1.0f),room.position), room.roomSize));
      shader.setVec3("lightPos", room.lightPos);
      shader.setVec3("lightColor", room.lightColor);
      shader.setFloat("grainAmount", room.grainAmount);
@@ -360,8 +361,10 @@ int main()
     }
     stbi_image_free(data);
 
-    Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f};
-    Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
+    //ROOMS//
+
+    Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f };
+    Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
 
     while (!glfwWindowShouldClose(window))
     {
