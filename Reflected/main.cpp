@@ -348,6 +348,7 @@ int main()
         roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
         roomShader.setVec3("viewPos", cameraPos);
         roomShader.setInt("texture1", 0);
+        roomShader.setFloat("time", currentFrame);
 
         // PASS 1 - mark mirror shape in stencil buffer
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -387,14 +388,18 @@ int main()
 
         roomShader.setMat4("view", mirrorView);
         if (inMirrorWorld) {
-            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,0.0f)));
+            roomShader.setMat4("model", glm::mat4(1.0f));
             roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+            roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+            roomShader.setFloat("grainAmount", 0.0f);
         }
         else {
             roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
             roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+            roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
+            roomShader.setFloat("grainAmount", 0.08f);
         }
-       
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         roomShader.setInt("useTexture", 1);
@@ -415,10 +420,14 @@ int main()
         if (inMirrorWorld) {
             roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
             roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+            roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
+            roomShader.setFloat("grainAmount", 0.08f);
         }
         else {
             roomShader.setMat4("model", glm::mat4(1.0f));
             roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+            roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+            roomShader.setFloat("grainAmount", 0.0f);
         }
 
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
@@ -439,10 +448,14 @@ int main()
             if (inMirrorWorld) {
                 roomShader.setMat4("model", glm::mat4(1.0f));
                 roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
+                roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+                roomShader.setFloat("grainAmount", 0.0f);
             }
             else {
                 roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
                 roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
+                roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
+                roomShader.setFloat("grainAmount", 0.08f);
             }
 
             glActiveTexture(GL_TEXTURE0);

@@ -8,6 +8,13 @@ uniform vec3 lightColor;
 uniform vec3 viewPos;
 uniform sampler2D texture1;
 uniform int useTexture;
+uniform float time;
+uniform float grainAmount;
+
+float rand(vec2 co)
+{
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 void main()
 {
@@ -17,11 +24,17 @@ void main()
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
+
     vec3 baseColor;
     if (useTexture == 1)
         baseColor = vec3(texture(texture1, TexCoord));
     else
         baseColor = vec3(0.8, 0.8, 0.8);
+
     vec3 result = (ambient + diffuse) * baseColor;
+
+    float noise = rand(gl_FragCoord.xy + time);
+    result += (noise - 0.5) * grainAmount;
+
     FragColor = vec4(result, 1.0);
 }
