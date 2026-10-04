@@ -33,6 +33,16 @@ bool inMirrorWorld = false;
 bool inDoorway = false;
 bool inPortalGap = false;
 
+struct Room {
+    glm::vec3 position;
+    glm::vec3 lightPos;
+    glm::vec3 lightColor;
+    float grainAmount;
+};
+
+unsigned int floorVAO, wallsVAO;
+unsigned int floorTexture, wallTexture;
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -136,6 +146,26 @@ void processInput(GLFWwindow* window)
      return proj;
 }
 
+ void drawRoom(Shader& shader, const Room& room) {
+     shader.setMat4("model", glm::translate(glm::mat4(1.0f), room.position));
+     shader.setVec3("lightPos", room.lightPos);
+     shader.setVec3("lightColor", room.lightColor);
+     shader.setFloat("grainAmount", room.grainAmount);
+
+     glActiveTexture(GL_TEXTURE0);
+     glBindTexture(GL_TEXTURE_2D, floorTexture);
+     shader.setInt("useTexture", 1);
+     glBindVertexArray(floorVAO);
+     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+     glActiveTexture(GL_TEXTURE0);
+     glBindTexture(GL_TEXTURE_2D, wallTexture);
+     shader.setInt("useTexture", 1);
+     glBindVertexArray(wallsVAO);
+     glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+ }
+
+
 
 
 int main()
@@ -167,6 +197,7 @@ int main()
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
+
 
     float vertices[] = {
         // FLOOR (normal pointing up)
@@ -235,8 +266,8 @@ int main()
     Shader roomShader("shader.vs", "shader.fs");
 
     unsigned int VBO;
-    unsigned int floorVAO, floorEBO;
-    unsigned int wallsVAO, wallsEBO;
+    unsigned int floorEBO;
+    unsigned int wallsEBO;
     unsigned int mirrorVAO, mirrorVBO, mirrorEBO;
 
     // shared VBO
@@ -292,7 +323,7 @@ int main()
     glBindVertexArray(0);
 
     // floor texture
-    unsigned int floorTexture;
+    //unsigned int floorTexture;
     glGenTextures(1, &floorTexture);
     glBindTexture(GL_TEXTURE_2D, floorTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -312,7 +343,7 @@ int main()
     stbi_image_free(data);
 
     // wall texture
-    unsigned int wallTexture;
+    //unsigned int wallTexture;
     glGenTextures(1, &wallTexture);
     glBindTexture(GL_TEXTURE_2D, wallTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -329,6 +360,9 @@ int main()
     }
     stbi_image_free(data);
 
+    Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f};
+    Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = (float)glfwGetTime();
@@ -343,9 +377,6 @@ int main()
         roomShader.use();
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
         roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
-        roomShader.setMat4("model", glm::mat4(1.0f));
-        roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
-        roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
         roomShader.setVec3("viewPos", cameraPos);
         roomShader.setInt("texture1", 0);
         roomShader.setFloat("time", currentFrame);
@@ -355,6 +386,7 @@ int main()
         glDepthMask(GL_FALSE);
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        roomShader.setMat4("model", glm::mat4(1.0f));
         glBindVertexArray(mirrorVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -364,10 +396,8 @@ int main()
         glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        // same position, just flip x of look directionchrome://vivaldi-webui/startpage?section=Speed-dials&background-color=#363536
+        // same position, just flip x of look direction
         glm::vec3 mirrorFront = cameraFront;
-        
-        
 
         // shift camera slightly towards mirror for parallax effect
         glm::vec3 mirrorPos = cameraPos;
@@ -388,84 +418,33 @@ int main()
 
         roomShader.setMat4("view", mirrorView);
         if (inMirrorWorld) {
-            roomShader.setMat4("model", glm::mat4(1.0f));
-            roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
-            roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-            roomShader.setFloat("grainAmount", 0.0f);
+            drawRoom(roomShader, roomA);
         }
         else {
-            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
-            roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
-            roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
-            roomShader.setFloat("grainAmount", 0.08f);
+            drawRoom(roomShader, roomB);
         }
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        roomShader.setInt("useTexture", 1);
-        glBindVertexArray(floorVAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, wallTexture);
-        roomShader.setInt("useTexture", 1);
-        glBindVertexArray(wallsVAO);
-        glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
 
         // PASS 3 - draw normal room
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
         roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
-        if (inMirrorWorld) {
-            roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
-            roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
-            roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
-            roomShader.setFloat("grainAmount", 0.08f);
-        }
-        else {
-            roomShader.setMat4("model", glm::mat4(1.0f));
-            roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
-            roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-            roomShader.setFloat("grainAmount", 0.0f);
-        }
-
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        roomShader.setInt("useTexture", 1);
-        glBindVertexArray(floorVAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, wallTexture);
-        roomShader.setInt("useTexture", 1);
-        glBindVertexArray(wallsVAO);
-        glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+        if (inMirrorWorld) {
+            drawRoom(roomShader, roomB);
+        }
+        else {
+            drawRoom(roomShader, roomA );
+        }
 
         if (inPortalGap) {
             if (inMirrorWorld) {
-                roomShader.setMat4("model", glm::mat4(1.0f));
-                roomShader.setVec3("lightPos", glm::vec3(0.0f, 4.2f, 0.0f));
-                roomShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-                roomShader.setFloat("grainAmount", 0.0f);
+                drawRoom(roomShader, roomA);
             }
             else {
-                roomShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(16.0f, 0.0f, 0.0f)));
-                roomShader.setVec3("lightPos", glm::vec3(16.0f, 4.2f, 0.0f));
-                roomShader.setVec3("lightColor", glm::vec3(0.35f, 0.35f, 0.4f));
-                roomShader.setFloat("grainAmount", 0.08f);
+                drawRoom(roomShader, roomB);
             }
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, floorTexture);
-            glBindVertexArray(floorVAO);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-            glBindTexture(GL_TEXTURE_2D, wallTexture);
-            glBindVertexArray(wallsVAO);
-            glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
         }
 
         glfwSwapBuffers(window);
