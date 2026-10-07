@@ -8,6 +8,7 @@
 #include <direct.h>
 #include "stb_image.h"
 #include "Texture.h"
+#include "Room.h"
 
 // window
 const unsigned int WIDTH = 1920;
@@ -33,17 +34,6 @@ float lastFrame = 0.0f;
 bool inMirrorWorld = false;
 bool inDoorway = false;
 bool inPortalGap = false;
-
-struct Room {
-    glm::vec3 position;
-    glm::vec3 roomSize;
-    glm::vec3 lightPos;
-    glm::vec3 lightColor;
-    float grainAmount;
-};
-
-unsigned int floorVAO, wallsVAO;
-unsigned int floorTexture, wallTexture;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -148,25 +138,6 @@ void processInput(GLFWwindow* window)
      return proj;
 }
 
- void drawRoom(Shader& shader, const Room& room) {
-     shader.setMat4("model", glm::scale(glm::translate(glm::mat4(1.0f),room.position), room.roomSize));
-     shader.setVec3("lightPos", room.lightPos);
-     shader.setVec3("lightColor", room.lightColor);
-     shader.setFloat("grainAmount", room.grainAmount);
-
-     glActiveTexture(GL_TEXTURE0);
-     glBindTexture(GL_TEXTURE_2D, floorTexture);
-     shader.setInt("useTexture", 1);
-     glBindVertexArray(floorVAO);
-     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-     glActiveTexture(GL_TEXTURE0);
-     glBindTexture(GL_TEXTURE_2D, wallTexture);
-     shader.setInt("useTexture", 1);
-     glBindVertexArray(wallsVAO);
-     glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
- }
-
 
 
 
@@ -268,8 +239,8 @@ int main()
     Shader roomShader("shader.vs", "shader.fs");
 
     unsigned int VBO;
-    unsigned int floorEBO;
-    unsigned int wallsEBO;
+    unsigned int floorVAO, floorEBO;
+    unsigned int wallsVAO, wallsEBO;
     unsigned int mirrorVAO, mirrorVBO, mirrorEBO;
 
     // shared VBO
@@ -324,8 +295,9 @@ int main()
     glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    floorTexture = loadTexture("floor.jpg");
-    wallTexture = loadTexture("walls.jpg");
+    unsigned int floorTexture = loadTexture("floor.jpg");
+    unsigned int wallTexture = loadTexture("walls.jpg");
+    RoomMesh mesh = { floorVAO, wallsVAO, floorTexture, wallTexture };
 
     //ROOMS//
 
@@ -387,10 +359,10 @@ int main()
 
         roomShader.setMat4("view", mirrorView);
         if (inMirrorWorld) {
-            drawRoom(roomShader, roomA);
+            drawRoom(roomShader, roomA, mesh);
         }
         else {
-            drawRoom(roomShader, roomB);
+            drawRoom(roomShader, roomB, mesh);
         }
 
         // PASS 3 - draw normal room
@@ -401,18 +373,18 @@ int main()
         roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
 
         if (inMirrorWorld) {
-            drawRoom(roomShader, roomB);
+            drawRoom(roomShader, roomB, mesh);
         }
         else {
-            drawRoom(roomShader, roomA );
+            drawRoom(roomShader, roomA, mesh);
         }
 
         if (inPortalGap) {
             if (inMirrorWorld) {
-                drawRoom(roomShader, roomA);
+                drawRoom(roomShader, roomA, mesh);
             }
             else {
-                drawRoom(roomShader, roomB);
+                drawRoom(roomShader, roomB, mesh);
             }
         }
 
