@@ -4,30 +4,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "Header.h"
 #include <direct.h>
-#include "stb_image.h"
+#include "Header.h"
 #include "Texture.h"
 #include "Room.h"
+#include "Camera.h"
 
-// window
 const unsigned int WIDTH = 1920;
 const unsigned int HEIGHT = 1080;
 
-// camera
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
-float yaw = -90.0f;
-float pitch = 0.0f;
-float lastX = WIDTH / 2.0f;
-float lastY = HEIGHT / 2.0f;
-
-bool firstMouse = true;
-float fov = 90.0f;
-
-// timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -40,36 +25,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
-{
-    if (firstMouse) {
-        lastX = (float)xpos;
-        lastY = (float)ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = (float)xpos - lastX;
-    float yoffset = lastY - (float)ypos;
-    lastX = (float)xpos;
-    lastY = (float)ypos;
-
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
-
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(direction);
-}
-
 void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -78,68 +33,62 @@ void processInput(GLFWwindow* window)
     const float cameraSpeed = 5.0f * deltaTime;
     const float cameraSpeedS = 2.5f * deltaTime;
 
-    glm::vec3 front = cameraFront;
+    glm::vec3 front = camera.front;
     front.y = 0.0f;
     front = glm::normalize(front);
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * front;
+        camera.pos += cameraSpeed * front;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeedS * front;
+        camera.pos -= cameraSpeedS * front;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
+        camera.pos -= glm::normalize(glm::cross(front, camera.up)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(front, cameraUp)) * cameraSpeed;
+        camera.pos += glm::normalize(glm::cross(front, camera.up)) * cameraSpeed;
 
-    inDoorway = cameraPos.z > -1.0f && cameraPos.z < 1.0f;
+    inDoorway = camera.pos.z > -1.0f && camera.pos.z < 1.0f;
+    inMirrorWorld = camera.pos.x > 8.0f;
+    inPortalGap = inDoorway && camera.pos.x > 7.4f && camera.pos.x < 8.6f;
 
-    inMirrorWorld = cameraPos.x > 8.0f;
-
-    inPortalGap = inDoorway && cameraPos.x > 7.4f && cameraPos.x < 8.6f;
-
-    cameraPos.y = 1.3f;
+    camera.pos.y = 1.3f;
     float margin = 0.3f;
 
-    // clamp
-    if (inDoorway) {
-        cameraPos.x = glm::clamp(cameraPos.x, -7.4f, 23.4f);
-        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+    if (inDoorway)
+    {
+        camera.pos.x = glm::clamp(camera.pos.x, -7.4f, 23.4f);
+        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
     }
     else if (inMirrorWorld)
     {
-        cameraPos.x = glm::clamp(cameraPos.x, 8.6f, 23.4f);
-        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+        camera.pos.x = glm::clamp(camera.pos.x, 8.6f, 23.4f);
+        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
     }
     else
     {
-        cameraPos.x = glm::clamp(cameraPos.x, -7.7f + margin, 7.7f - margin);
-        cameraPos.z = glm::clamp(cameraPos.z, -7.7f + margin, 7.7f - margin);
+        camera.pos.x = glm::clamp(camera.pos.x, -7.7f + margin, 7.7f - margin);
+        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
     }
-      
 }
 
- glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane) {
-     
-     glm::vec4 q;
-     glm::vec4 c;
+glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane)
+{
+    glm::vec4 q;
+    glm::vec4 c;
 
-     q.x = (glm::sign(clipPlane.x) + proj[2][0]) / proj[0][0];
-     q.y = (glm::sign(clipPlane.y) + proj[2][1]) / proj[1][1];
-     q.z = -1.0f;
-     q.w = (1.0f + proj[2][2]) / proj[3][2];
+    q.x = (glm::sign(clipPlane.x) + proj[2][0]) / proj[0][0];
+    q.y = (glm::sign(clipPlane.y) + proj[2][1]) / proj[1][1];
+    q.z = -1.0f;
+    q.w = (1.0f + proj[2][2]) / proj[3][2];
 
-     c = clipPlane * (2.0f / glm::dot(clipPlane, q));
+    c = clipPlane * (2.0f / glm::dot(clipPlane, q));
 
-     proj[0][2] = c.x;
-     proj[1][2] = c.y;
-     proj[2][2] = c.z + 1.0f;
-     proj[3][2] = c.w;
+    proj[0][2] = c.x;
+    proj[1][2] = c.y;
+    proj[2][2] = c.z + 1.0f;
+    proj[3][2] = c.w;
 
-     return proj;
+    return proj;
 }
-
-
-
 
 int main()
 {
@@ -171,53 +120,44 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
 
-
     float vertices[] = {
-        // FLOOR (normal pointing up)
         -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
          8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  0.0f, 1.0f, 0.0f,
          8.0f, 0.0f,  8.0f,  2.0f, 2.0f,  0.0f, 1.0f, 0.0f,
         -8.0f, 0.0f,  8.0f,  0.0f, 2.0f,  0.0f, 1.0f, 0.0f,
 
-        // BACK WALL
         -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
          8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  0.0f, 0.0f, 1.0f,
          8.0f, 4.5f, -8.0f,  2.0f, 2.0f,  0.0f, 0.0f, 1.0f,
         -8.0f, 4.5f, -8.0f,  0.0f, 2.0f,  0.0f, 0.0f, 1.0f,
 
-        // FRONT WALL
         -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
          8.0f, 0.0f,  8.0f,  2.0f, 0.0f,  0.0f, 0.0f, -1.0f,
          8.0f, 4.5f,  8.0f,  2.0f, 2.0f,  0.0f, 0.0f, -1.0f,
         -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, 0.0f, -1.0f,
 
-        // LEFT WALL
         -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
         -8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  1.0f, 0.0f, 0.0f,
         -8.0f, 4.5f, -8.0f,  2.0f, 2.0f,  1.0f, 0.0f, 0.0f,
         -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  1.0f, 0.0f, 0.0f,
 
-        // RIGHT WALL
          8.0f, 0.0f, -8.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
          8.0f, 0.0f,  8.0f,  2.0f, 0.0f, -1.0f, 0.0f, 0.0f,
          8.0f, 4.5f,  8.0f,  2.0f, 2.0f, -1.0f, 0.0f, 0.0f,
          8.0f, 4.5f, -8.0f,  0.0f, 2.0f, -1.0f, 0.0f, 0.0f,
 
-         // CEILING
-         -8.0f, 4.5f, -8.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-          8.0f, 4.5f, -8.0f,  2.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-          8.0f, 4.5f,  8.0f,  2.0f, 2.0f,  0.0f, -1.0f, 0.0f,
-         -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, -1.0f, 0.0f,
+        -8.0f, 4.5f, -8.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+         8.0f, 4.5f, -8.0f,  2.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+         8.0f, 4.5f,  8.0f,  2.0f, 2.0f,  0.0f, -1.0f, 0.0f,
+        -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, -1.0f, 0.0f,
     };
 
     float mirrorVertices[] = {
-        // position          // texcoord  // normal
-        8.0f, 0.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom left
-        8.0f, 0.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // bottom right
-        8.0f, 3.5f,  1.0f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,  // top right
-        8.0f, 3.5f, -1.0f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f   // top left
+        8.0f, 0.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
+        8.0f, 0.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
+        8.0f, 3.5f,  1.0f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
+        8.0f, 3.5f, -1.0f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f
     };
-
 
     unsigned int mirrorIndices[] = {
         0, 1, 2,
@@ -243,12 +183,10 @@ int main()
     unsigned int wallsVAO, wallsEBO;
     unsigned int mirrorVAO, mirrorVBO, mirrorEBO;
 
-    // shared VBO
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // floor VAO
     glGenVertexArrays(1, &floorVAO);
     glGenBuffers(1, &floorEBO);
     glBindVertexArray(floorVAO);
@@ -263,7 +201,6 @@ int main()
     glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    // walls VAO
     glGenVertexArrays(1, &wallsVAO);
     glGenBuffers(1, &wallsEBO);
     glBindVertexArray(wallsVAO);
@@ -278,7 +215,6 @@ int main()
     glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    // mirror VAO
     glGenVertexArrays(1, &mirrorVAO);
     glGenBuffers(1, &mirrorVBO);
     glGenBuffers(1, &mirrorEBO);
@@ -299,8 +235,6 @@ int main()
     unsigned int wallTexture = loadTexture("walls.jpg");
     RoomMesh mesh = { floorVAO, wallsVAO, floorTexture, wallTexture };
 
-    //ROOMS//
-
     Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f };
     Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
 
@@ -315,14 +249,16 @@ int main()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+        glm::mat4 projection = glm::perspective(glm::radians(camera.fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+
         roomShader.use();
-        roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
-        roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
-        roomShader.setVec3("viewPos", cameraPos);
+        roomShader.setMat4("projection", projection);
+        roomShader.setMat4("view", view);
+        roomShader.setVec3("viewPos", camera.pos);
         roomShader.setInt("texture1", 0);
         roomShader.setFloat("time", currentFrame);
 
-        // PASS 1 - mark mirror shape in stencil buffer
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         glDepthMask(GL_FALSE);
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -333,64 +269,44 @@ int main()
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthMask(GL_TRUE);
 
-        // PASS 2 - draw mirror world (flip x axis, mirror on right wall x=8)
         glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        // same position, just flip x of look direction
-        glm::vec3 mirrorFront = cameraFront;
-
-        // shift camera slightly towards mirror for parallax effect
-        glm::vec3 mirrorPos = cameraPos;
-        //mirrorPos.x = 16.0f - cameraPos.x;
-        mirrorPos.x = cameraPos.x;
-
-        glm::mat4 mirrorView = glm::lookAt(mirrorPos, mirrorPos + mirrorFront, cameraUp);
         glm::vec4 worldPlane;
-        if (inMirrorWorld) {
+        if (inMirrorWorld)
             worldPlane = glm::vec4(-1.0f, 0.0f, 0.0f, 7.99f);
-        }
-        else {
+        else
             worldPlane = glm::vec4(1.0f, 0.0f, 0.0f, -8.01f);
-        }
-        glm::vec4 viewPlane = glm::transpose(glm::inverse(mirrorView)) * worldPlane;
 
-        roomShader.setMat4("projection", obliqueProjection(glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f), viewPlane));
+        glm::vec4 viewPlane = glm::transpose(glm::inverse(view)) * worldPlane;
+        roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
 
-        roomShader.setMat4("view", mirrorView);
-        if (inMirrorWorld) {
+        if (inMirrorWorld)
             drawRoom(roomShader, roomA, mesh);
-        }
-        else {
+        else
             drawRoom(roomShader, roomB, mesh);
-        }
 
-        // PASS 3 - draw normal room
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        roomShader.setMat4("projection", projection);
 
-        roomShader.setMat4("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
-        roomShader.setMat4("projection", glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 100.0f));
-
-        if (inMirrorWorld) {
+        if (inMirrorWorld)
             drawRoom(roomShader, roomB, mesh);
-        }
-        else {
+        else
             drawRoom(roomShader, roomA, mesh);
-        }
 
-        if (inPortalGap) {
-            if (inMirrorWorld) {
+        if (inPortalGap)
+        {
+            if (inMirrorWorld)
                 drawRoom(roomShader, roomA, mesh);
-            }
-            else {
+            else
                 drawRoom(roomShader, roomB, mesh);
-            }
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
     glfwTerminate();
     return 0;
 }
