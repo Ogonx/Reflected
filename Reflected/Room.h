@@ -18,3 +18,6 @@ struct RoomMesh {
 };
 
 void drawRoom(Shader& shader, const Room& room, const RoomMesh& mesh);
+glm::vec3 clampToRoom(const Room& room, glm::vec3 pos, float margin);
+float roomMinX(const Room& room);
+float roomMaxX(const Room& room);

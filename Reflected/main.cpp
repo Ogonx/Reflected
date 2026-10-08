@@ -46,28 +46,31 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.pos += glm::normalize(glm::cross(front, camera.up)) * cameraSpeed;
 
+    camera.pos.y = 1.3f;
+}
+
+void updateCollision(const Room& roomA, const Room& roomB)
+{
+    const float margin = 0.3f;
+
     inDoorway = camera.pos.z > -1.0f && camera.pos.z < 1.0f;
     inMirrorWorld = camera.pos.x > 8.0f;
-    inPortalGap = inDoorway && camera.pos.x > 7.4f && camera.pos.x < 8.6f;
 
-    camera.pos.y = 1.3f;
-    float margin = 0.3f;
+    const Room& current = inMirrorWorld ? roomB : roomA;
 
     if (inDoorway)
     {
-        camera.pos.x = glm::clamp(camera.pos.x, -7.4f, 23.4f);
-        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
-    }
-    else if (inMirrorWorld)
-    {
-        camera.pos.x = glm::clamp(camera.pos.x, 8.6f, 23.4f);
-        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
+        glm::vec3 clamped = clampToRoom(current, camera.pos, margin);
+        camera.pos.z = clamped.z;
+        camera.pos.x = glm::clamp(camera.pos.x, roomMinX(roomA) + margin, roomMaxX(roomB) - margin);
     }
     else
     {
-        camera.pos.x = glm::clamp(camera.pos.x, -7.7f + margin, 7.7f - margin);
-        camera.pos.z = glm::clamp(camera.pos.z, -7.7f + margin, 7.7f - margin);
+        camera.pos = clampToRoom(current, camera.pos, margin);
     }
+
+    inMirrorWorld = camera.pos.x > 8.0f;
+    inPortalGap = inDoorway && camera.pos.x > 7.4f && camera.pos.x < 8.6f;
 }
 
 glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane)
@@ -245,6 +248,7 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window);
+        updateCollision(roomA, roomB);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
