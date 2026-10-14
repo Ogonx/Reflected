@@ -129,6 +129,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Portal.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="stbimages.cpp" />
     <ClCompile Include="Texture.cpp" />
@@ -140,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Header.h" />
+    <ClInclude Include="Portal.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="Texture.h" />

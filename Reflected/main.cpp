@@ -9,6 +9,8 @@
 #include "Texture.h"
 #include "Room.h"
 #include "Camera.h"
+#include <vector>
+#include "Portal.h"
 
 const unsigned int WIDTH = 1920;
 const unsigned int HEIGHT = 1080;
@@ -241,6 +243,11 @@ int main()
     Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f };
     Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
 
+    std::vector<Portal> portals = {
+    { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 0, 1 },
+    { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 1, 0 }
+    };
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = (float)glfwGetTime();
@@ -276,11 +283,8 @@ int main()
         glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        glm::vec4 worldPlane;
-        if (inMirrorWorld)
-            worldPlane = glm::vec4(-1.0f, 0.0f, 0.0f, 7.99f);
-        else
-            worldPlane = glm::vec4(1.0f, 0.0f, 0.0f, -8.01f);
+        const Portal& viewPortal = inMirrorWorld ? portals[1] : portals[0];
+        glm::vec4 worldPlane = portalClipPlane(viewPortal);
 
         glm::vec4 viewPlane = glm::transpose(glm::inverse(view)) * worldPlane;
         roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
