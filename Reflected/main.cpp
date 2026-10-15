@@ -51,11 +51,11 @@ void processInput(GLFWwindow* window)
     camera.pos.y = 1.3f;
 }
 
-void updateCollision(const Room& roomA, const Room& roomB)
+void updateCollision(const Room& roomA, const Room& roomB, const std::vector<Portal>& portals)
 {
     const float margin = 0.3f;
 
-    inDoorway = camera.pos.z > -1.0f && camera.pos.z < 1.0f;
+    inDoorway = isInPortalOpening(portals[0], camera.pos);
     inMirrorWorld = camera.pos.x > 8.0f;
 
     const Room& current = inMirrorWorld ? roomB : roomA;
@@ -72,7 +72,7 @@ void updateCollision(const Room& roomA, const Room& roomB)
     }
 
     inMirrorWorld = camera.pos.x > 8.0f;
-    inPortalGap = inDoorway && camera.pos.x > 7.4f && camera.pos.x < 8.6f;
+    inPortalGap = isInPortalGap(portals[0], camera.pos);
 }
 
 glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane)
@@ -255,7 +255,7 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window);
-        updateCollision(roomA, roomB);
+        updateCollision(roomA, roomB, portals);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);

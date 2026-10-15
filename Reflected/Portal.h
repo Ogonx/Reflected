@@ -12,3 +12,5 @@ struct Portal {
 };
 
 glm::vec4 portalClipPlane(const Portal& p);
+bool isInPortalOpening(const Portal& p, glm::vec3 pos);
+bool isInPortalGap(const Portal& p, glm::vec3 pos);
