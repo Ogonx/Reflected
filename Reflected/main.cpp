@@ -18,9 +18,7 @@ const unsigned int HEIGHT = 1080;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-bool inMirrorWorld = false;
-bool inDoorway = false;
-bool inPortalGap = false;
+int currentRoom = 0;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -51,28 +49,44 @@ void processInput(GLFWwindow* window)
     camera.pos.y = 1.3f;
 }
 
-void updateCollision(const Room& roomA, const Room& roomB, const std::vector<Portal>& portals)
+void updateRoom(const std::vector<Portal>& portals)
+{
+    for (const Portal& p : portals)
+    {
+        if (p.room != currentRoom)
+            continue;
+
+        float frontDist = glm::dot(camera.pos - p.pos, p.normal);
+
+        if (isInPortalOpening(p, camera.pos) && frontDist < 0.0f)
+        {
+            currentRoom = portals[p.linkedPortal].room;
+            return;
+        }
+    }
+}
+
+void updateCollision(const std::vector<Room>& rooms, const std::vector<Portal>& portals)
 {
     const float margin = 0.3f;
+    glm::vec3 clamped = clampToRoom(rooms[currentRoom], camera.pos, margin);
 
-    inDoorway = isInPortalOpening(portals[0], camera.pos);
-    inMirrorWorld = camera.pos.x > 8.0f;
-
-    const Room& current = inMirrorWorld ? roomB : roomA;
-
-    if (inDoorway)
+    for (const Portal& p : portals)
     {
-        glm::vec3 clamped = clampToRoom(current, camera.pos, margin);
-        camera.pos.z = clamped.z;
-        camera.pos.x = glm::clamp(camera.pos.x, roomMinX(roomA) + margin, roomMaxX(roomB) - margin);
-    }
-    else
-    {
-        camera.pos = clampToRoom(current, camera.pos, margin);
+        if (p.room != currentRoom)
+            continue;
+
+        float frontDist = glm::dot(camera.pos - p.pos, p.normal);
+
+        if (isInPortalOpening(p, camera.pos) && frontDist < 1.0f)
+        {
+            float wanted = glm::dot(camera.pos, p.normal);
+            float actual = glm::dot(clamped, p.normal);
+            clamped += p.normal * (wanted - actual);
+        }
     }
 
-    inMirrorWorld = camera.pos.x > 8.0f;
-    inPortalGap = isInPortalGap(portals[0], camera.pos);
+    camera.pos = clamped;
 }
 
 glm::mat4 obliqueProjection(glm::mat4 proj, glm::vec4 clipPlane)
@@ -211,15 +225,19 @@ int main()
     unsigned int wallTexture = loadTexture("walls.jpg");
     RoomMesh mesh = { floorVAO, wallsVAO, floorTexture, wallTexture };
 
-    Room roomA = { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f };
-    Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
+    std::vector<Room> rooms = {
+        { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f },
+        { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f }
+    };
 
     std::vector<Portal> portals = {
         { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 0, 1 },
         { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 1, 0 }
     };
 
-    unsigned int portalVAO = createPortalVAO(portals[0]);
+    std::vector<unsigned int> portalVAOs;
+    for (const Portal& p : portals)
+        portalVAOs.push_back(createPortalVAO(p));
 
     while (!glfwWindowShouldClose(window))
     {
@@ -228,7 +246,8 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window);
-        updateCollision(roomA, roomB, portals);
+        updateRoom(portals);
+        updateCollision(rooms, portals);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -245,43 +264,46 @@ int main()
 
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         glDepthMask(GL_FALSE);
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         roomShader.setMat4("model", glm::mat4(1.0f));
-        glBindVertexArray(portalVAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        for (int i = 0; i < (int)portals.size(); i++)
+        {
+            if (portals[i].room != currentRoom)
+                continue;
+
+            glStencilFunc(GL_ALWAYS, i + 1, 0xFF);
+            glBindVertexArray(portalVAOs[i]);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthMask(GL_TRUE);
-
-        glStencilFunc(GL_EQUAL, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-        const Portal& viewPortal = inMirrorWorld ? portals[1] : portals[0];
-        glm::vec4 worldPlane = portalClipPlane(viewPortal);
-
-        glm::vec4 viewPlane = glm::transpose(glm::inverse(view)) * worldPlane;
-        roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
-
-        if (inMirrorWorld)
-            drawRoom(roomShader, roomA, mesh);
-        else
-            drawRoom(roomShader, roomB, mesh);
-
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-        roomShader.setMat4("projection", projection);
-
-        if (inMirrorWorld)
-            drawRoom(roomShader, roomB, mesh);
-        else
-            drawRoom(roomShader, roomA, mesh);
-
-        if (inPortalGap)
+        for (int i = 0; i < (int)portals.size(); i++)
         {
-            if (inMirrorWorld)
-                drawRoom(roomShader, roomA, mesh);
-            else
-                drawRoom(roomShader, roomB, mesh);
+            const Portal& p = portals[i];
+            if (p.room != currentRoom)
+                continue;
+
+            glStencilFunc(GL_EQUAL, i + 1, 0xFF);
+
+            glm::vec4 viewPlane = glm::transpose(glm::inverse(view)) * portalClipPlane(p);
+            roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
+
+            int otherRoom = portals[p.linkedPortal].room;
+            drawRoom(roomShader, rooms[otherRoom], mesh);
+        }
+
+        glStencilFunc(GL_EQUAL, 0, 0xFF);
+        roomShader.setMat4("projection", projection);
+        drawRoom(roomShader, rooms[currentRoom], mesh);
+
+        for (const Portal& p : portals)
+        {
+            if (p.room == currentRoom && isInPortalGap(p, camera.pos))
+                drawRoom(roomShader, rooms[portals[p.linkedPortal].room], mesh);
         }
 
         glfwSwapBuffers(window);
