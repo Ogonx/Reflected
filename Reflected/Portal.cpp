@@ -1,5 +1,6 @@
 #include <glad/glad.h>
 #include "Portal.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 glm::vec4 portalClipPlane(const Portal& p)
 {
@@ -60,4 +61,30 @@ unsigned int createPortalVAO(const Portal& p)
 
     glBindVertexArray(0);
     return VAO;
+}
+
+glm::mat4 portalFrame(const Portal& p) {
+
+    glm::vec3 out = p.normal;
+    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 side = glm::normalize(glm::cross(up, out));
+
+    glm::mat4 frame(1.0f);
+    frame[0] = glm::vec4(side, 0.0f);
+    frame[1] = glm::vec4(up, 0.0f);
+    frame[2] = glm::vec4(out, 0.0f);
+    frame[3] = glm::vec4(p.pos, 1.0f);
+    return frame;
+}
+
+glm::mat4 portalTransform(const Portal& from, const Portal& to)
+{
+    glm::mat4 turnAround = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    return portalFrame(to) * turnAround * glm::inverse(portalFrame(from));
+}
+
+glm::vec4 portalExitPlane(const Portal& p)
+{
+    float d = -glm::dot(p.normal, p.pos) - 0.01f;
+    return glm::vec4(p.normal, d);
 }

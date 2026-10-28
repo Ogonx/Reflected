@@ -287,14 +287,20 @@ int main()
             if (p.room != currentRoom)
                 continue;
 
-            glStencilFunc(GL_EQUAL, i + 1, 0xFF);
+            const Portal& exit = portals[p.linkedPortal];
+            glm::mat4 throughPortal = portalTransform(p, exit);
+            glm::mat4 portalView = view * glm::inverse(throughPortal);
 
-            glm::vec4 viewPlane = glm::transpose(glm::inverse(view)) * portalClipPlane(p);
+            glStencilFunc(GL_EQUAL, i + 1, 0xFF);
+            roomShader.setMat4("view", portalView);
+
+            glm::vec4 viewPlane = glm::transpose(glm::inverse(portalView)) * portalExitPlane(exit);
             roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
 
-            int otherRoom = portals[p.linkedPortal].room;
-            drawRoom(roomShader, rooms[otherRoom], mesh);
+            drawRoom(roomShader, rooms[exit.room], mesh);
         }
+
+        roomShader.setMat4("view", view);
 
         glStencilFunc(GL_EQUAL, 0, 0xFF);
         roomShader.setMat4("projection", projection);
