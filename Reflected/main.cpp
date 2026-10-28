@@ -1,6 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,7 +10,6 @@
 #include "Texture.h"
 #include "Room.h"
 #include "Camera.h"
-#include <vector>
 #include "Portal.h"
 
 const unsigned int WIDTH = 1920;
@@ -157,18 +157,6 @@ int main()
         -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, -1.0f, 0.0f,
     };
 
-    float mirrorVertices[] = {
-        8.0f, 0.0f, -1.0f,  0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
-        8.0f, 0.0f,  1.0f,  1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,
-        8.0f, 3.5f,  1.0f,  1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,
-        8.0f, 3.5f, -1.0f,  0.0f, 1.0f,  -1.0f, 0.0f, 0.0f
-    };
-
-    unsigned int mirrorIndices[] = {
-        0, 1, 2,
-        0, 2, 3
-    };
-
     unsigned int floorIndices[] = {
         0, 1, 2,  0, 2, 3
     };
@@ -186,7 +174,6 @@ int main()
     unsigned int VBO;
     unsigned int floorVAO, floorEBO;
     unsigned int wallsVAO, wallsEBO;
-    unsigned int mirrorVAO, mirrorVBO, mirrorEBO;
 
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -220,22 +207,6 @@ int main()
     glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    glGenVertexArrays(1, &mirrorVAO);
-    glGenBuffers(1, &mirrorVBO);
-    glGenBuffers(1, &mirrorEBO);
-    glBindVertexArray(mirrorVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, mirrorVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(mirrorVertices), mirrorVertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mirrorEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(mirrorIndices), mirrorIndices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glBindVertexArray(0);
-
     unsigned int floorTexture = loadTexture("floor.jpg");
     unsigned int wallTexture = loadTexture("walls.jpg");
     RoomMesh mesh = { floorVAO, wallsVAO, floorTexture, wallTexture };
@@ -244,9 +215,11 @@ int main()
     Room roomB = { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f };
 
     std::vector<Portal> portals = {
-    { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 0, 1 },
-    { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 1, 0 }
+        { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 0, 1 },
+        { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 1, 0 }
     };
+
+    unsigned int portalVAO = createPortalVAO(portals[0]);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -275,7 +248,7 @@ int main()
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         roomShader.setMat4("model", glm::mat4(1.0f));
-        glBindVertexArray(mirrorVAO);
+        glBindVertexArray(portalVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthMask(GL_TRUE);
