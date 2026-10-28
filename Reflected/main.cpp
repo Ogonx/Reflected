@@ -60,7 +60,14 @@ void updateRoom(const std::vector<Portal>& portals)
 
         if (isInPortalOpening(p, camera.pos) && frontDist < 0.0f)
         {
-            currentRoom = portals[p.linkedPortal].room;
+            const Portal& exit = portals[p.linkedPortal];
+            glm::mat4 throughPortal = portalTransform(p, exit);
+
+            camera.pos = glm::vec3(throughPortal * glm::vec4(camera.pos, 1.0f));
+            camera.front = glm::normalize(glm::vec3(throughPortal * glm::vec4(camera.front, 0.0f)));
+            camera.yaw = glm::degrees(atan2(camera.front.z, camera.front.x));
+
+            currentRoom = exit.room;
             return;
         }
     }
@@ -139,64 +146,26 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
 
-    float vertices[] = {
+    float floorVertices[] = {
         -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 1.0f, 0.0f,
          8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  0.0f, 1.0f, 0.0f,
          8.0f, 0.0f,  8.0f,  2.0f, 2.0f,  0.0f, 1.0f, 0.0f,
-        -8.0f, 0.0f,  8.0f,  0.0f, 2.0f,  0.0f, 1.0f, 0.0f,
-
-        -8.0f, 0.0f, -8.0f,  0.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-         8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  0.0f, 0.0f, 1.0f,
-         8.0f, 4.5f, -8.0f,  2.0f, 2.0f,  0.0f, 0.0f, 1.0f,
-        -8.0f, 4.5f, -8.0f,  0.0f, 2.0f,  0.0f, 0.0f, 1.0f,
-
-        -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-         8.0f, 0.0f,  8.0f,  2.0f, 0.0f,  0.0f, 0.0f, -1.0f,
-         8.0f, 4.5f,  8.0f,  2.0f, 2.0f,  0.0f, 0.0f, -1.0f,
-        -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, 0.0f, -1.0f,
-
-        -8.0f, 0.0f,  8.0f,  0.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-        -8.0f, 0.0f, -8.0f,  2.0f, 0.0f,  1.0f, 0.0f, 0.0f,
-        -8.0f, 4.5f, -8.0f,  2.0f, 2.0f,  1.0f, 0.0f, 0.0f,
-        -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  1.0f, 0.0f, 0.0f,
-
-         8.0f, 0.0f, -8.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-         8.0f, 0.0f,  8.0f,  2.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-         8.0f, 4.5f,  8.0f,  2.0f, 2.0f, -1.0f, 0.0f, 0.0f,
-         8.0f, 4.5f, -8.0f,  0.0f, 2.0f, -1.0f, 0.0f, 0.0f,
-
-        -8.0f, 4.5f, -8.0f,  0.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-         8.0f, 4.5f, -8.0f,  2.0f, 0.0f,  0.0f, -1.0f, 0.0f,
-         8.0f, 4.5f,  8.0f,  2.0f, 2.0f,  0.0f, -1.0f, 0.0f,
-        -8.0f, 4.5f,  8.0f,  0.0f, 2.0f,  0.0f, -1.0f, 0.0f,
+        -8.0f, 0.0f,  8.0f,  0.0f, 2.0f,  0.0f, 1.0f, 0.0f
     };
 
     unsigned int floorIndices[] = {
         0, 1, 2,  0, 2, 3
     };
 
-    unsigned int wallIndices[] = {
-        4,  5,  6,   4,  6,  7,
-        8,  9,  10,  8,  10, 11,
-        12, 13, 14,  12, 14, 15,
-        16, 17, 18,  16, 18, 19,
-        20, 21, 22,  20, 22, 23
-    };
-
     Shader roomShader("shader.vs", "shader.fs");
 
-    unsigned int VBO;
-    unsigned int floorVAO, floorEBO;
-    unsigned int wallsVAO, wallsEBO;
-
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
+    unsigned int floorVAO, floorVBO, floorEBO;
     glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
     glGenBuffers(1, &floorEBO);
     glBindVertexArray(floorVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), floorVertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, floorEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(floorIndices), floorIndices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
@@ -207,33 +176,22 @@ int main()
     glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    glGenVertexArrays(1, &wallsVAO);
-    glGenBuffers(1, &wallsEBO);
-    glBindVertexArray(wallsVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, wallsEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(wallIndices), wallIndices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glBindVertexArray(0);
-
     unsigned int floorTexture = loadTexture("floor.jpg");
     unsigned int wallTexture = loadTexture("walls.jpg");
-    RoomMesh mesh = { floorVAO, wallsVAO, floorTexture, wallTexture };
 
     std::vector<Room> rooms = {
         { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 4.2f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 0.0f },
-        { glm::vec3(16.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(16.0f, 4.2f, 0.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f }
+        { glm::vec3(0.0f, 0.0f, 60.0f), glm::vec3(1.0f, 2.0f, 1.0f), glm::vec3(0.0f, 4.2f, 60.0f), glm::vec3(0.35f, 0.35f, 0.4f), 0.08f }
     };
 
     std::vector<Portal> portals = {
         { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 0, 1 },
-        { glm::vec3(8.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), 2.0f, 3.5f, 1, 0 }
+        { glm::vec3(0.0f, 0.0f, 52.0f), glm::vec3(0.0f, 0.0f, 1.0f), 2.0f, 3.5f, 1, 0 }
     };
+
+    std::vector<RoomMesh> meshes;
+    for (int i = 0; i < (int)rooms.size(); i++)
+        meshes.push_back(createRoomMesh(rooms[i], i, portals, floorVAO, floorTexture, wallTexture));
 
     std::vector<unsigned int> portalVAOs;
     for (const Portal& p : portals)
@@ -297,19 +255,23 @@ int main()
             glm::vec4 viewPlane = glm::transpose(glm::inverse(portalView)) * portalExitPlane(exit);
             roomShader.setMat4("projection", obliqueProjection(projection, viewPlane));
 
-            drawRoom(roomShader, rooms[exit.room], mesh);
+            drawRoom(roomShader, rooms[exit.room], meshes[exit.room]);
         }
 
         roomShader.setMat4("view", view);
 
         glStencilFunc(GL_EQUAL, 0, 0xFF);
         roomShader.setMat4("projection", projection);
-        drawRoom(roomShader, rooms[currentRoom], mesh);
+        drawRoom(roomShader, rooms[currentRoom], meshes[currentRoom]);
 
         for (const Portal& p : portals)
         {
             if (p.room == currentRoom && isInPortalGap(p, camera.pos))
-                drawRoom(roomShader, rooms[portals[p.linkedPortal].room], mesh);
+            {
+                const Portal& exit = portals[p.linkedPortal];
+                glm::mat4 backThrough = glm::inverse(portalTransform(p, exit));
+                drawRoom(roomShader, rooms[exit.room], meshes[exit.room], backThrough);
+            }
         }
 
         glfwSwapBuffers(window);

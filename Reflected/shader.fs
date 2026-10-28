@@ -1,11 +1,12 @@
 #version 330 core
-in vec2 TexCoord;
-in vec3 Normal;
 in vec3 FragPos;
+in vec3 Normal;
+in vec3 TexPos;
+in vec3 TexNormal;
 out vec4 FragColor;
+
 uniform vec3 lightPos;
 uniform vec3 lightColor;
-uniform vec3 viewPos;
 uniform sampler2D texture1;
 uniform int useTexture;
 uniform float time;
@@ -25,22 +26,19 @@ void main()
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    vec3 baseColor;
-
-    vec3 n = abs(normalize(Normal));
-    vec2 worldUV;
-
-    if(n.y > 0.5)
-       worldUV = FragPos.xz;
+    vec3 n = abs(normalize(TexNormal));
+    vec2 uv;
+    if (n.y > 0.5)
+        uv = TexPos.xz;
     else if (n.x > 0.5)
-       worldUV = FragPos.zy;
+        uv = TexPos.zy;
     else
-       worldUV = FragPos.xy;
+        uv = TexPos.xy;
+    uv /= 8.0;
 
-    worldUV /= 8.0;
-
+    vec3 baseColor;
     if (useTexture == 1)
-        baseColor = vec3(texture(texture1,worldUV));
+        baseColor = vec3(texture(texture1, uv));
     else
         baseColor = vec3(0.8, 0.8, 0.8);
 
